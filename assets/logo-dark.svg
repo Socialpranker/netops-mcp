@@ -7,17 +7,8 @@
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
   </defs>
-  <!-- Wordmark colour follows the viewer's theme. GitHub honours prefers-color-scheme
-       for inline SVG; in an <img> the browser still applies it. Falls back to the
-       light value when a renderer ignores @media. -->
-  <style>
-    .wordmark { fill: #1F2328; }
-    @media (prefers-color-scheme: dark) { .wordmark { fill: #F0F6FC; } }
-  </style>
 
-  <!-- The mark: 4 layer bars, 3rd highlighted, verdict arrow into it.
-       Neutral grey bars read on both light and dark backgrounds;
-       the gradient is reserved for the verdict (the highlighted layer + arrow). -->
+  <!-- The mark: 4 layer bars, 3rd highlighted, verdict arrow into it. -->
   <g transform="translate(12,22)">
     <rect x="0" y="0"  width="86" height="13" rx="3.5" fill="#8B949E"/>
     <rect x="0" y="20" width="86" height="13" rx="3.5" fill="#8B949E"/>
@@ -29,7 +20,7 @@
     </g>
   </g>
 
-  <!-- Wordmark adapts to theme via .wordmark class; dash + tagline stay neutral grey. -->
-  <text x="182" y="58" class="wordmark" font-size="40" font-weight="800" letter-spacing="-0.5">netops<tspan fill="#8B949E">-</tspan>mcp</text>
+  <!-- Wordmark for DARK backgrounds (light text). -->
+  <text x="182" y="58" fill="#F0F6FC" font-size="40" font-weight="800" letter-spacing="-0.5">netops<tspan fill="#8B949E">-</tspan>mcp</text>
   <text x="184" y="82" fill="#8B949E" font-size="13.5" letter-spacing="0.3">a verdict, not a data dump</text>
 </svg>

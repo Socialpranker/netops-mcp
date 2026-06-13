@@ -1,4 +1,10 @@
-<h1 align="center">netops-mcp</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
+    <img src="assets/logo-dark.svg" alt="netops-mcp — a verdict, not a data dump" width="380">
+  </picture>
+</p>
 
 <p align="center">
   <strong>Diagnose connectivity and inspect your tunnels — locally, from your AI assistant.</strong>
@@ -15,6 +21,27 @@
 <p align="center">
   <img src="assets/cli.gif" alt="netops-mcp diagnoses an unreachable host and finds a stale /etc/hosts pin in one call" width="680">
 </p>
+
+<details>
+<summary><strong>📑 Table of contents</strong></summary>
+
+- [What is this?](#what-is-this)
+- [Why it's different](#why-its-different)
+- [What you actually get back](#what-you-actually-get-back)
+- [Tools (v0.1)](#tools-v01)
+- [Install](#install)
+- [Reference &amp; advanced](#reference--advanced)
+  - [Flags &amp; env](#flags--env)
+  - [Requirements &amp; platform support](#requirements--platform-support)
+  - [The shareable report](#the-shareable-report)
+  - [cert_sweep: point it at your reverse proxy](#cert_sweep-point-it-at-your-reverse-proxy)
+- [Develop](#develop)
+- [Demo](#demo)
+- [Roadmap (v0.2+)](#roadmap-v02)
+- [Contributing](#contributing)
+- [License](#license)
+
+</details>
 
 ## What is this?
 
@@ -79,54 +106,6 @@ DNS resolves (93.184.216.34) but TCP/443 is closed/filtered. Firewall, the servi
 is down, or wrong port. ICMP also fails.
 ```
 
-## Install
-
-```bash
-npx netops-mcp
-```
-
-### Claude Desktop / Claude Code / Cursor — `mcp.json`
-
-```json
-{
-  "mcpServers": {
-    "netops": {
-      "command": "npx",
-      "args": ["-y", "netops-mcp"]
-    }
-  }
-}
-```
-
-Privacy-strict (no third-party calls at all — disables Globalping and the egress-IP echo):
-
-```json
-{
-  "mcpServers": {
-    "netops": {
-      "command": "npx",
-      "args": ["-y", "netops-mcp", "--local-only"]
-    }
-  }
-}
-```
-
-## Requirements & platform support
-
-- **Node ≥ 20.** No other hard dependency — DNS/TCP/TLS/HTTP probes are pure Node.
-- **Optional system binaries**, used when on `PATH`, gracefully skipped otherwise:
-  - `ping` — `net_ping` falls back to a TCP connect if it's missing; `mtu_blackhole` needs it.
-  - `traceroute` (`tracert` on Windows) — for `traceroute`.
-  - `wg` (wireguard-tools) — for the WireGuard tools.
-
-| Platform | Status |
-|---|---|
-| **Linux** | First-class. All tools work given the optional binaries. |
-| **macOS** | Works. Caveat: macOS doesn't use `/etc/resolv.conf`, so resolver lists in `config_correlate` / `dns_leak_check` may come back empty. |
-| **Windows** | Partial. Pure-Node probes (DNS/TCP/TLS/HTTP) work; `wg show dump` and some binary-output parsers are Linux/macOS-oriented. |
-
-Applying WireGuard changes (`wg set`) needs root / `CAP_NET_ADMIN` — the server never auto-escalates; it surfaces the error if it lacks privilege.
-
 ## Tools (v0.1)
 
 **Diagnose & orchestrate**
@@ -168,7 +147,44 @@ Applying WireGuard changes (`wg set`) needs root / `CAP_NET_ADMIN` — the serve
 | `wg_peer_add` | Add/update a peer | `--enable-write`, dry-run unless `confirm:true` |
 | `wg_peer_remove` | Remove a peer | `--enable-write`, dry-run unless `confirm:true` |
 
-## Flags & env
+## Install
+
+```bash
+npx netops-mcp
+```
+
+### Claude Desktop / Claude Code / Cursor — `mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "netops": {
+      "command": "npx",
+      "args": ["-y", "netops-mcp"]
+    }
+  }
+}
+```
+
+Privacy-strict (no third-party calls at all — disables Globalping and the egress-IP echo):
+
+```json
+{
+  "mcpServers": {
+    "netops": {
+      "command": "npx",
+      "args": ["-y", "netops-mcp", "--local-only"]
+    }
+  }
+}
+```
+
+## Reference &amp; advanced
+
+<details>
+<summary>Flags, platform support, the shareable report, and cert_sweep deep-dive</summary>
+
+### Flags & env
 
 | Flag / Env | Effect |
 |---|---|
@@ -180,7 +196,23 @@ Applying WireGuard changes (`wg set`) needs root / `CAP_NET_ADMIN` — the serve
 | `NETOPS_MAX_PORTS` | Cap for `tcp_port_check` (default 20) |
 | `NETOPS_HOSTS_FILE` | Override the hosts-file path (used by `config_correlate`) |
 
-## The shareable report
+### Requirements & platform support
+
+- **Node ≥ 20.** No other hard dependency — DNS/TCP/TLS/HTTP probes are pure Node.
+- **Optional system binaries**, used when on `PATH`, gracefully skipped otherwise:
+  - `ping` — `net_ping` falls back to a TCP connect if it's missing; `mtu_blackhole` needs it.
+  - `traceroute` (`tracert` on Windows) — for `traceroute`.
+  - `wg` (wireguard-tools) — for the WireGuard tools.
+
+| Platform | Status |
+|---|---|
+| **Linux** | First-class. All tools work given the optional binaries. |
+| **macOS** | Works. Caveat: macOS doesn't use `/etc/resolv.conf`, so resolver lists in `config_correlate` / `dns_leak_check` may come back empty. |
+| **Windows** | Partial. Pure-Node probes (DNS/TCP/TLS/HTTP) work; `wg show dump` and some binary-output parsers are Linux/macOS-oriented. |
+
+Applying WireGuard changes (`wg set`) needs root / `CAP_NET_ADMIN` — the server never auto-escalates; it surfaces the error if it lacks privilege.
+
+### The shareable report
 
 `diagnosis_bundle` renders a full probe battery as paste-ready Markdown — drop it straight into a bug ticket or a Slack thread:
 
@@ -206,7 +238,7 @@ _2026-06-13T10:04:11Z_
 - egress IP: 203.0.113.7
 ```
 
-## cert_sweep: point it at your reverse proxy
+### cert_sweep: point it at your reverse proxy
 
 Instead of listing domains by hand, give `cert_sweep` a config path and it extracts the hostnames itself — from nginx `server_name`, Traefik `` Host(`…`) `` labels, Caddy site blocks, and compose files — then reports expiry soonest-first:
 
@@ -218,6 +250,8 @@ cert_sweep  config_path: /etc/nginx/sites-enabled/
 ✓ www.example.com    — 71d left
 Checked 3 domains — 1 needs attention (≤21d or expired), 0 unreachable.
 ```
+
+</details>
 
 ## Develop
 

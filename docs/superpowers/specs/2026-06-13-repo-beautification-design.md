@@ -16,10 +16,11 @@
 
 ## Компоненты и файлы
 
-### 1. Логотип — `assets/logo.svg`
-- Verdict Stack mark + wordmark `netops-mcp` ИЛИ только mark (решим по месту — для шапки README mark+wordmark, для favicon только mark).
-- Прозрачный фон, чтобы читался и в light, и в dark теме GitHub. Если контраст в light-теме слабый — обвести mark тонким нейтральным штрихом.
-- Встраивается в шапку README, центрированный, ~80px высотой.
+### 1. Логотип — `assets/logo-dark.svg` + `assets/logo-light.svg`
+- Verdict Stack mark + wordmark `netops-mcp` + tagline.
+- **Две версии, не одна** (решение по ходу): GitHub растеризует SVG в `<img>` и игнорирует `@media (prefers-color-scheme)` внутри файла — единый theme-adaptive SVG не работает, а единый нейтральный цвет бледнит на белом. Поэтому: `logo-dark.svg` (текст `#F0F6FC`, бары `#8B949E`) + `logo-light.svg` (текст `#1F2328`, бары `#6E7781`).
+- README подключает через `<picture>` с `<source media="(prefers-color-scheme: ...)">` — это GitHub поддерживает надёжно.
+- Встраивается в шапку README, центрированный, width=380.
 
 ### 2. og-image — `assets/og-image.png`
 - **Размер: 1280×640** (требование GitHub social preview).
