@@ -16,20 +16,39 @@
   <img src="assets/cli.gif" alt="netops-mcp diagnoses an unreachable host and finds a stale /etc/hosts pin in one call" width="680">
 </p>
 
-An MCP server that runs network diagnostics **from your own machine and inside your own network** — homelab, VPN, private subnets — not from a remote probe. It hands your assistant a *verdict*, not just raw command output.
+## What is this?
+
+You ask your AI assistant *"why can't I reach this site?"* — and normally it just runs `ping`/`dig`/`curl` and dumps the raw output back at you. You're left to interpret it yourself.
+
+**netops-mcp gives your assistant a verdict instead of a data dump.** Not *"here's what ping said"* — but *"it's your side: line 2 of your `/etc/hosts` is pinning the site to a dead address."*
+
+The catch: it runs **on your machine**, so it sees what no cloud service can — your home network, your VPN, your local config.
 
 ```
-"Why can't I reach api.example.com?"
-→ resolves DNS locally, pings, checks TCP/TLS, asks Globalping if it's up elsewhere,
-  reads your /etc/hosts — and tells you WHERE the fault is, in one tool call.
+            "Why can't I reach api.example.com?"
+                          │
+                          ▼
+        ┌─────────────────────────────────────┐
+        │  netops-mcp  (runs on YOUR machine) │
+        │                                     │
+        │   DNS → ping → TCP → TLS → HTTP     │  ← checks every layer
+        │   + asks Globalping: up elsewhere?  │  ← "is it me or them?"
+        │   + reads your /etc/hosts           │  ← the thing no remote probe sees
+        └─────────────────────────────────────┘
+                          │
+                          ▼
+   "It's YOUR side. /etc/hosts:2 pins it to a stale 10.0.0.5.
+    The site is live from the US, EU & Asia — remove that line."
 ```
+
+In short: **a translator between "the network is broken" and "here's the exact cause."**
 
 ## Why it's different
 
-- **Local-first.** Probes run from your host, so it sees your homelab, your VPN, your `/etc/hosts`, your resolvers. A SaaS that probes from its own data center cannot.
-- **Verdicts, not data.** `net_diagnose` and `net_triangulate` reason across DNS / TCP / TLS / HTTP and local config to tell you *which side* the fault is on — yours or theirs.
-- **Safe by default.** Read-only. No shell (every system call is `execFile` with an argv array). Anti-scan caps. Allow/deny lists. Audit log to stderr. Zero telemetry. See [SECURITY.md](./SECURITY.md).
-- **Few moving parts.** DNS, TCP, TLS and HTTP probing are pure Node — no `dig`, no `curl`, no `openssl` shelled out. `ping` / `traceroute` / `wg` are used when present and degrade gracefully when not.
+- **Local-first — it sees what cloud tools can't.** Probes run from *your* host, so it sees your homelab, your VPN, your `/etc/hosts`, your resolvers. A stale `/etc/hosts` pin breaks a site for *you* while it works for everyone else — and a SaaS probing from its own data center is structurally blind to it. netops-mcp catches it.
+- **Verdicts, not data.** Instead of dumping raw output, `net_diagnose` and `net_triangulate` reason across DNS / TCP / TLS / HTTP and your local config and tell you *which side* the fault is on — yours or theirs. One answer, not a wall of text to re-read.
+- **Safe by default.** Read-only. No shell (every system call is `execFile` with an argv array, never a string). Anti-scan caps, allow/deny lists, audit log to stderr, zero telemetry. The WireGuard write ops are behind a flag *and* dry-run unless you explicitly confirm. See [SECURITY.md](./SECURITY.md).
+- **Few moving parts.** DNS, TCP, TLS and HTTP probing are pure Node — no `dig`, `curl`, or `openssl` shelled out — so it works even in slim containers or locked-down images where those aren't installed. `ping` / `traceroute` / `wg` are used when present and skipped gracefully when not.
 
 ## What you actually get back
 
@@ -49,7 +68,7 @@ The target is down.
 **`config_correlate` — the stale-pin catch no remote probe can make:**
 
 ```
-/etc/hosts:12 pins api.example.com -> 10.0.0.5; this OVERRIDES DNS (DNS itself
+/etc/hosts:2 pins api.example.com -> 10.0.0.5; this OVERRIDES DNS (DNS itself
 returns nothing). If api.example.com seems stuck on an old address, this line is why.
 ```
 
