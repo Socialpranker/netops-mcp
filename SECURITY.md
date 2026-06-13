@@ -34,6 +34,19 @@ trustworthy in a corporate or homelab environment is the default, not an option.
    (`[netops-audit] …`). Silence with `--no-audit`. stdout is reserved for the MCP
    protocol and never used for logging.
 
+7. **Network output is marked untrusted.** Tools that surface attacker-controllable
+   network text — DNS records (`dns_lookup`), reverse-DNS hostnames (`traceroute`),
+   TLS error strings and certificate fields (`tls_inspect`, `cert_sweep`,
+   `net_diagnose`, `diagnosis_bundle`), HTTP status text (`http_probe`) — wrap that
+   text in an `⟦untrusted:…⟧` delimiter before it reaches the model-visible output,
+   and carry the MCP `openWorldHint` annotation. This blunts *indirect prompt
+   injection*: a hostile DNS server, a hop with a crafted PTR record, or a honeypot's
+   certificate cannot easily smuggle instructions into your assistant's context
+   disguised as a normal result. This is **defense-in-depth, not a guarantee** — the
+   delimiter collapses newlines but an attacker who places the closing bracket `⟧`
+   inside their payload can still break the fence, so always treat tool output as
+   data, not commands.
+
 ## Reporting
 
 Found a vulnerability? Open a private security advisory on the repository rather than
