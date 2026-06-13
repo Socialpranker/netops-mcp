@@ -1,21 +1,17 @@
 name: regenerate demo gif
 
 # Re-renders assets/cli.gif from demo/demo.tape using the real CLI.
-# Run manually from the Actions tab, or on changes to the demo.
+# Run manually from the Actions tab (the VHS action installs ffmpeg/ttyd,
+# which is too heavy and flaky to run on every push).
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "demo/**"
-      - "src/**"
-      - ".github/workflows/demo.yml"
 
 jobs:
   vhs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
       - run: npm ci && npm run build
