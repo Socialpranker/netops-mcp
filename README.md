@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/demo.gif" alt="netops-mcp diagnoses an unreachable host and finds a stale /etc/hosts pin in one call" width="680">
+  <img src="assets/cli.gif" alt="netops-mcp diagnoses an unreachable host and finds a stale /etc/hosts pin in one call" width="680">
 </p>
 
 An MCP server that runs network diagnostics **from your own machine and inside your own network** — homelab, VPN, private subnets — not from a remote probe. It hands your assistant a *verdict*, not just raw command output.
