@@ -815,7 +815,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "Network overview",
       description: "Snapshot of local interfaces, resolvers, and WireGuard interfaces — quick context for the assistant.",
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       inputSchema: {},
     },
     async () =>
