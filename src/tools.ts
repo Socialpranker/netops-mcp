@@ -54,7 +54,8 @@ function guardWrap(fn: () => Promise<ToolReturn>): Promise<ToolReturn> {
 // attacker-controllable and могут содержать prompt-injection payloads. The
 // delimiter marks them as untrusted data, not instructions. See SECURITY.md.
 function untrusted(s: string): string {
-  // Collapse newlines/control chars that could break out of the marker, cap length.
+  // Collapse newlines (the main injection breakout) plus spaces/hyphens, cap length.
+  // This is defense-in-depth, not a hard guarantee — see SECURITY.md.
   const clean = s.replace(/[\r\n -]+/g, " ").slice(0, 512);
   return `⟦untrusted:${clean}⟧`;
 }
@@ -351,11 +352,11 @@ export function registerTools(server: McpServer, guard: Guard): void {
           tls = await tlsInspect(host, 443);
           steps.tls = tls;
           if (tls.ok && tls.daysToExpiry != null && tls.daysToExpiry < 0) {
-            verdict = `Reaches ${host} but the TLS certificate EXPIRED ${-tls.daysToExpiry} days ago (${tls.validTo}). That's their side.`;
+            verdict = `Reaches ${host} but the TLS certificate EXPIRED ${-tls.daysToExpiry} days ago (${untrusted(String(tls.validTo))}). That's their side.`;
             return ok(verdict, { target, verdict, steps });
           }
           if (tls.ok && !tls.authorized) {
-            verdict = `Reaches ${host} but TLS chain is INVALID: ${tls.authorizationError}. Cert/trust problem on their side (or a MITM/proxy).`;
+            verdict = `Reaches ${host} but TLS chain is INVALID: ${untrusted(String(tls.authorizationError ?? "unknown"))}. Cert/trust problem on their side (or a MITM/proxy).`;
             return ok(verdict, { target, verdict, steps });
           }
         }
@@ -462,7 +463,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         if (!dns.records.length && !net.isIP(host)) verdict = "DNS resolution failed — likely your resolver or a nonexistent domain.";
         else if (!tcp.open) verdict = `TCP/${tcp.port} closed/filtered — firewall, service down, or wrong port.`;
         else if (tls && tls.ok && tls.daysToExpiry != null && tls.daysToExpiry < 0) verdict = `TLS certificate expired ${-tls.daysToExpiry}d ago — server-side.`;
-        else if (tls && tls.ok && !tls.authorized) verdict = `TLS chain invalid: ${tls.authorizationError} — server-side or interception.`;
+        else if (tls && tls.ok && !tls.authorized) verdict = `TLS chain invalid: ${untrusted(String(tls.authorizationError ?? "unknown"))} — server-side or interception.`;
         else if (http && http.status && http.status >= 500) verdict = `Reachable; server returns HTTP ${http.status} (their error).`;
         else if (http && http.ok) verdict = `Fully reachable — no network fault detected.`;
         else verdict = "Reaches TCP but no clean HTTP response — application-layer issue.";
@@ -483,13 +484,13 @@ export function registerTools(server: McpServer, guard: Guard): void {
           md.push("## TLS");
           if (tls.ok) {
             md.push(`- ${tls.protocol} ${tls.cipher}, handshake ${tls.handshakeMs}ms`);
-            md.push(`- cert: ${tls.daysToExpiry != null ? (tls.daysToExpiry < 0 ? `EXPIRED ${-tls.daysToExpiry}d ago` : `${tls.daysToExpiry}d left`) : "unknown"} (${tls.validTo ?? "?"}), ${tls.authorized ? "valid chain" : `INVALID: ${tls.authorizationError}`}`);
+            md.push(`- cert: ${tls.daysToExpiry != null ? (tls.daysToExpiry < 0 ? `EXPIRED ${-tls.daysToExpiry}d ago` : `${tls.daysToExpiry}d left`) : "unknown"} (${tls.validTo != null ? untrusted(String(tls.validTo)) : "?"}), ${tls.authorized ? "valid chain" : `INVALID: ${untrusted(String(tls.authorizationError ?? "unknown"))}`}`);
           } else md.push(`- failed: ${tls.error}`);
         }
         if (http) {
           md.push("## HTTP");
           if (http.ok) {
-            md.push(`- ${http.status} ${http.statusText ?? ""}${http.redirects ? ` (${http.redirects} redirects)` : ""}`);
+            md.push(`- ${http.status} ${http.statusText ? untrusted(http.statusText) : ""}${http.redirects ? ` (${http.redirects} redirects)` : ""}`);
             md.push(`- timing: DNS ${http.timing?.dnsMs ?? "?"}ms · connect ${http.timing?.connectMs ?? "?"}ms · TLS ${http.timing?.tlsMs ?? "?"}ms · TTFB ${http.timing?.ttfbMs}ms · total ${http.timing?.totalMs}ms`);
           } else md.push(`- failed: ${http.error}`);
         }
