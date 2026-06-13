@@ -32,10 +32,14 @@ jobs:
         env:
           REF_NAME: ${{ github.ref_name }}   # branch the run was triggered from; via env to avoid run-block injection
         run: |
-          if ! git diff --quiet -- assets/cli.gif; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add assets/cli.gif
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Stage first, THEN check the index — plain `git diff` misses an untracked
+          # (never-before-committed) cli.gif, so the first render would never commit.
+          git add assets/cli.gif
+          if ! git diff --cached --quiet -- assets/cli.gif; then
             git commit -m "chore: regenerate demo gif [skip ci]"
             git push origin "HEAD:$REF_NAME"   # push back to the same branch, never a guessed default
+          else
+            echo "cli.gif unchanged — nothing to commit"
           fi
