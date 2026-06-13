@@ -49,6 +49,16 @@ function guardWrap(fn: () => Promise<ToolReturn>): Promise<ToolReturn> {
   );
 }
 
+// Wrap network-derived text (DNS records, reverse-DNS hostnames, cert fields,
+// HTTP status/headers) before it enters the model-visible `content`. These are
+// attacker-controllable and могут содержать prompt-injection payloads. The
+// delimiter marks them as untrusted data, not instructions. See SECURITY.md.
+function untrusted(s: string): string {
+  // Collapse newlines/control chars that could break out of the marker, cap length.
+  const clean = s.replace(/[\r\n -]+/g, " ").slice(0, 512);
+  return `⟦untrusted:${clean}⟧`;
+}
+
 function hostFromTarget(target: string): string {
   try {
     if (target.includes("://")) return new URL(target).hostname;
