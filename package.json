@@ -1,0 +1,46 @@
+{
+  "name": "netops-mcp",
+  "version": "0.1.0",
+  "description": "Local-first network diagnostics & tunnel/proxy MCP server. Diagnose connectivity and inspect your WireGuard/proxy setup from your AI assistant — from your own machine, not a remote probe.",
+  "type": "module",
+  "bin": {
+    "netops-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "network",
+    "diagnostics",
+    "wireguard",
+    "vpn",
+    "proxy",
+    "dns",
+    "tls",
+    "devops",
+    "claude"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}
