@@ -77,7 +77,8 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "DNS lookup",
       description:
-        "Resolve DNS records for a name. Supports A/AAAA/MX/TXT/NS/CNAME/SOA and an optional custom resolver.",
+        "Resolve DNS records for a name. Supports A/AAAA/MX/TXT/NS/CNAME/SOA and an optional custom resolver. " +
+        "Use this when you ONLY need to check DNS resolution. For a full 'why can't I reach X' verdict that also checks ping/TCP/TLS/HTTP, use net_diagnose instead.",
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         name: z.string().describe("hostname to resolve"),
@@ -103,7 +104,8 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "Ping host",
       description:
-        "Reachability check. Uses ICMP ping when available, falls back to a TCP connect (works without root).",
+        "Reachability check. Uses ICMP ping when available, falls back to a TCP connect (works without root). " +
+        "Use this when you ONLY need to know if a host is alive. It does NOT check application ports or HTTP — for that use tcp_port_check or net_diagnose.",
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("host to ping"),
@@ -127,7 +129,8 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "TCP port check",
       description:
-        "Check whether specific TCP ports on a host accept connections. This is a connectivity check of named ports — NOT a discovery scan. Capped by scope-guard.",
+        "Check whether specific TCP ports on a host accept connections. This is a connectivity check of named ports — NOT a discovery scan. Capped by scope-guard. " +
+        "Use this when you need to verify a SPECIFIC port is open at the TCP level. It does NOT send HTTP or check TLS. Use after net_ping confirms the host is alive, or when ICMP is blocked.",
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("target host"),
