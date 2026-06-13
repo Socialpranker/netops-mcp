@@ -49,6 +49,18 @@ function guardWrap(fn: () => Promise<ToolReturn>): Promise<ToolReturn> {
   );
 }
 
+// Wrap network-derived text (DNS records, reverse-DNS hostnames, cert fields,
+// HTTP status/headers) before it enters the model-visible `content`. These are
+// attacker-controllable and могут содержать prompt-injection payloads. The
+// delimiter marks them as untrusted data, not instructions. See SECURITY.md.
+function untrusted(s: string): string {
+  // Collapse newlines and all C0 control chars (the injection breakout) to a space,
+  // cap length. Hostnames stay intact (hyphens/dots untouched). Defense-in-depth,
+  // not a hard guarantee — see SECURITY.md.
+  const clean = s.replace(/[\x00-\x20]+/g, " ").slice(0, 512);
+  return `⟦untrusted:${clean}⟧`;
+}
+
 function hostFromTarget(target: string): string {
   try {
     if (target.includes("://")) return new URL(target).hostname;
@@ -66,7 +78,9 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "DNS lookup",
       description:
-        "Resolve DNS records for a name. Supports A/AAAA/MX/TXT/NS/CNAME/SOA and an optional custom resolver.",
+        "Resolve DNS records for a name. Supports A/AAAA/MX/TXT/NS/CNAME/SOA and an optional custom resolver. " +
+        "Use this when you ONLY need to check DNS resolution. For a full 'why can't I reach X' verdict that also checks ping/TCP/TLS/HTTP, use net_diagnose instead.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         name: z.string().describe("hostname to resolve"),
         type: z.string().optional().describe("record type (default A)"),
@@ -81,7 +95,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         const r = await resolveDns(name, type ?? "A", dnsServer);
         const summary = r.error
           ? `DNS ${type ?? "A"} ${name} failed: ${r.error}`
-          : `${name} ${type ?? "A"} -> ${r.records.join(", ") || "(none)"} (${r.ms}ms${dnsServer ? ` via ${dnsServer}` : ""})`;
+          : `${name} ${type ?? "A"} -> ${r.records.length ? untrusted(r.records.join(", ")) : "(none)"} (${r.ms}ms${dnsServer ? ` via ${dnsServer}` : ""})`;
         return ok(summary, r as unknown as Record<string, unknown>);
       }),
   );
@@ -91,7 +105,9 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "Ping host",
       description:
-        "Reachability check. Uses ICMP ping when available, falls back to a TCP connect (works without root).",
+        "Reachability check. Uses ICMP ping when available, falls back to a TCP connect (works without root). " +
+        "Use this when you ONLY need to know if a host is alive. It does NOT check application ports or HTTP — for that use tcp_port_check or net_diagnose.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("host to ping"),
         tcp_port: z.number().optional().describe("port for TCP-ping fallback (default 443)"),
@@ -114,7 +130,9 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "TCP port check",
       description:
-        "Check whether specific TCP ports on a host accept connections. This is a connectivity check of named ports — NOT a discovery scan. Capped by scope-guard.",
+        "Check whether specific TCP ports on a host accept connections. This is a connectivity check of named ports — NOT a discovery scan. Capped by scope-guard. " +
+        "Use this when you need to verify a SPECIFIC port is open at the TCP level. It does NOT send HTTP or check TLS. Use after net_ping confirms the host is alive, or when ICMP is blocked.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("target host"),
         ports: z.array(z.number()).describe("list of ports to check"),
@@ -139,6 +157,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "TLS / certificate inspect",
       description:
         "Open a TLS connection and report certificate chain, expiry (days), SANs, protocol, cipher, handshake timing, and validation status.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("host"),
         port: z.number().optional().describe("port (default 443)"),
@@ -156,7 +175,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
               ? `EXPIRED ${-r.daysToExpiry}d ago`
               : `${r.daysToExpiry}d left`
             : "unknown expiry";
-        const valid = r.authorized ? "valid chain" : `INVALID: ${r.authorizationError}`;
+        const valid = r.authorized ? "valid chain" : `INVALID: ${untrusted(String(r.authorizationError ?? "unknown"))}`;
         return ok(
           `${host}:${r.port} ${r.protocol} ${r.cipher}, cert ${exp}, ${valid}, handshake ${r.handshakeMs}ms`,
           r as unknown as Record<string, unknown>,
@@ -170,6 +189,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "HTTP probe",
       description:
         "GET a URL and report status, redirect chain, server header, and a timing breakdown (DNS / connect / TLS / TTFB / total).",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         url: z.string().describe("URL to probe"),
       },
@@ -181,7 +201,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         const r = await httpProbe(url);
         if (!r.ok) return fail(`HTTP ${url} failed: ${r.error}`, r as any);
         return ok(
-          `HTTP ${r.status} ${r.statusText ?? ""} ${url}${r.redirects ? ` (${r.redirects} redirects)` : ""}, TTFB ${r.timing?.ttfbMs}ms total ${r.timing?.totalMs}ms`,
+          `HTTP ${r.status} ${r.statusText ? untrusted(r.statusText) : ""} ${url}${r.redirects ? ` (${r.redirects} redirects)` : ""}, TTFB ${r.timing?.ttfbMs}ms total ${r.timing?.totalMs}ms`,
           r as unknown as Record<string, unknown>,
         );
       }),
@@ -192,6 +212,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "Traceroute",
       description: "Trace the network path to a host hop by hop, with per-hop latency. Wraps system traceroute/tracert.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("destination host"),
         max_hops: z.number().optional().describe("max hops (default 20)"),
@@ -206,8 +227,8 @@ export function registerTools(server: McpServer, guard: Guard): void {
         const last = r.hops[r.hops.length - 1];
         const reached = last && last.host !== "*";
         const summary =
-          `${r.hops.length} hops to ${host}${reached ? ` (last: ${last.host}${last.rttMs != null ? ` ${last.rttMs}ms` : ""})` : " (did not complete)"}\n` +
-          r.hops.map((h) => `  ${h.hop}. ${h.host}${h.rttMs != null ? `  ${h.rttMs}ms` : ""}`).join("\n");
+          `${r.hops.length} hops to ${host}${reached ? ` (last: ${untrusted(last.host)}${last.rttMs != null ? ` ${last.rttMs}ms` : ""})` : " (did not complete)"}\n` +
+          r.hops.map((h) => `  ${h.hop}. ${h.host === "*" ? "*" : untrusted(h.host)}${h.rttMs != null ? `  ${h.rttMs}ms` : ""}`).join("\n");
         return ok(summary, r as unknown as Record<string, unknown>);
       }),
   );
@@ -218,6 +239,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "MTU black-hole detector",
       description:
         "Path-MTU discovery via Don't-Fragment pings. Detects the classic MTU black hole — small packets pass, large ones vanish with no ICMP reply — the reason connections establish but then hang on big transfers over VPN/PPPoE links.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("host to probe the path MTU to"),
       },
@@ -238,6 +260,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "TLS certificate sweep",
       description:
         "Check TLS certificate expiry across many domains at once. Pass an explicit list, and/or config paths (nginx/Caddy/Traefik/compose files or dirs) to auto-extract the domains. Sorts by soonest expiry and flags certs expiring within warn_days.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         domains: z.array(z.string()).optional().describe("explicit domains to check"),
         paths: z.array(z.string()).optional().describe("config files/dirs to extract domains from"),
@@ -284,10 +307,10 @@ export function registerTools(server: McpServer, guard: Guard): void {
         });
 
         const lines = checked.map((c) => {
-          if (!c.ok) return `  ✗ ${c.domain} — unreachable (${c.error})`;
+          if (!c.ok) return `  ✗ ${c.domain} — unreachable (${untrusted(String(c.error ?? "error"))})`;
           if (c.daysToExpiry == null) return `  ? ${c.domain} — no expiry info`;
-          if (c.daysToExpiry < 0) return `  ⚠ ${c.domain} — EXPIRED ${-c.daysToExpiry}d ago (${c.validTo})`;
-          if (c.daysToExpiry <= warn) return `  ⚠ ${c.domain} — expires in ${c.daysToExpiry}d (${c.validTo})`;
+          if (c.daysToExpiry < 0) return `  ⚠ ${c.domain} — EXPIRED ${-c.daysToExpiry}d ago (${untrusted(String(c.validTo))})`;
+          if (c.daysToExpiry <= warn) return `  ⚠ ${c.domain} — expires in ${c.daysToExpiry}d (${untrusted(String(c.validTo))})`;
           return `  ✓ ${c.domain} — ${c.daysToExpiry}d left`;
         });
         const flagged = checked.filter(
@@ -307,6 +330,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Diagnose connectivity (why can't I reach X)",
       description:
         "One-shot diagnosis: resolves DNS, pings, checks TCP, inspects TLS, and probes HTTP for a target, then returns a verdict on where the failure is.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         target: z.string().describe("hostname or URL to diagnose"),
       },
@@ -341,11 +365,11 @@ export function registerTools(server: McpServer, guard: Guard): void {
           tls = await tlsInspect(host, 443);
           steps.tls = tls;
           if (tls.ok && tls.daysToExpiry != null && tls.daysToExpiry < 0) {
-            verdict = `Reaches ${host} but the TLS certificate EXPIRED ${-tls.daysToExpiry} days ago (${tls.validTo}). That's their side.`;
+            verdict = `Reaches ${host} but the TLS certificate EXPIRED ${-tls.daysToExpiry} days ago (${untrusted(String(tls.validTo))}). That's their side.`;
             return ok(verdict, { target, verdict, steps });
           }
           if (tls.ok && !tls.authorized) {
-            verdict = `Reaches ${host} but TLS chain is INVALID: ${tls.authorizationError}. Cert/trust problem on their side (or a MITM/proxy).`;
+            verdict = `Reaches ${host} but TLS chain is INVALID: ${untrusted(String(tls.authorizationError ?? "unknown"))}. Cert/trust problem on their side (or a MITM/proxy).`;
             return ok(verdict, { target, verdict, steps });
           }
         }
@@ -372,6 +396,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Is it me or them? (local + global probes)",
       description:
         "Runs the same reachability test from THIS machine and from Globalping's worldwide probes, then verdicts whether a failure is your side, your network/ISP, or the target. Disabled in --local-only mode.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         target: z.string().describe("hostname or URL"),
         locations: z.array(z.string()).optional().describe("probe regions, e.g. US/EU/Asia"),
@@ -421,6 +446,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Shareable diagnosis report",
       description:
         "Runs a full battery of probes against a target and returns a clean Markdown report you can paste straight into a bug report or support ticket. Includes DNS, reachability, TLS, HTTP timing, optional global probes, and local context.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         target: z.string().describe("hostname or URL to diagnose"),
         include_global: z
@@ -452,7 +478,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         if (!dns.records.length && !net.isIP(host)) verdict = "DNS resolution failed — likely your resolver or a nonexistent domain.";
         else if (!tcp.open) verdict = `TCP/${tcp.port} closed/filtered — firewall, service down, or wrong port.`;
         else if (tls && tls.ok && tls.daysToExpiry != null && tls.daysToExpiry < 0) verdict = `TLS certificate expired ${-tls.daysToExpiry}d ago — server-side.`;
-        else if (tls && tls.ok && !tls.authorized) verdict = `TLS chain invalid: ${tls.authorizationError} — server-side or interception.`;
+        else if (tls && tls.ok && !tls.authorized) verdict = `TLS chain invalid: ${untrusted(String(tls.authorizationError ?? "unknown"))} — server-side or interception.`;
         else if (http && http.status && http.status >= 500) verdict = `Reachable; server returns HTTP ${http.status} (their error).`;
         else if (http && http.ok) verdict = `Fully reachable — no network fault detected.`;
         else verdict = "Reaches TCP but no clean HTTP response — application-layer issue.";
@@ -465,7 +491,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         md.push(`**Verdict:** ${verdict}`);
         md.push("");
         md.push("## DNS");
-        md.push(dns.records.length ? `- A: ${dns.records.join(", ")} (${dns.ms}ms)` : `- A: no answer (${dns.error ?? "none"})`);
+        md.push(dns.records.length ? `- A: ${untrusted(dns.records.join(", "))} (${dns.ms}ms)` : `- A: no answer (${dns.error ?? "none"})`);
         md.push("## Reachability");
         md.push(`- ping: ${ping.reachable ? `reachable via ${ping.method}${ping.rttMs != null ? ` ${ping.rttMs}ms` : ""}` : "unreachable"}`);
         md.push(`- TCP/${tcp.port}: ${tcp.open ? `open (${tcp.ms}ms)` : `closed/filtered (${tcp.error})`}`);
@@ -473,13 +499,13 @@ export function registerTools(server: McpServer, guard: Guard): void {
           md.push("## TLS");
           if (tls.ok) {
             md.push(`- ${tls.protocol} ${tls.cipher}, handshake ${tls.handshakeMs}ms`);
-            md.push(`- cert: ${tls.daysToExpiry != null ? (tls.daysToExpiry < 0 ? `EXPIRED ${-tls.daysToExpiry}d ago` : `${tls.daysToExpiry}d left`) : "unknown"} (${tls.validTo ?? "?"}), ${tls.authorized ? "valid chain" : `INVALID: ${tls.authorizationError}`}`);
+            md.push(`- cert: ${tls.daysToExpiry != null ? (tls.daysToExpiry < 0 ? `EXPIRED ${-tls.daysToExpiry}d ago` : `${tls.daysToExpiry}d left`) : "unknown"} (${tls.validTo != null ? untrusted(String(tls.validTo)) : "?"}), ${tls.authorized ? "valid chain" : `INVALID: ${untrusted(String(tls.authorizationError ?? "unknown"))}`}`);
           } else md.push(`- failed: ${tls.error}`);
         }
         if (http) {
           md.push("## HTTP");
           if (http.ok) {
-            md.push(`- ${http.status} ${http.statusText ?? ""}${http.redirects ? ` (${http.redirects} redirects)` : ""}`);
+            md.push(`- ${http.status} ${http.statusText ? untrusted(http.statusText) : ""}${http.redirects ? ` (${http.redirects} redirects)` : ""}`);
             md.push(`- timing: DNS ${http.timing?.dnsMs ?? "?"}ms · connect ${http.timing?.connectMs ?? "?"}ms · TLS ${http.timing?.tlsMs ?? "?"}ms · TTFB ${http.timing?.ttfbMs}ms · total ${http.timing?.totalMs}ms`);
           } else md.push(`- failed: ${http.error}`);
         }
@@ -508,6 +534,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Correlate local config with live DNS",
       description:
         "Reads /etc/hosts and resolv.conf and cross-checks them against live DNS — surfaces the hidden config that explains weird resolution (stale /etc/hosts pin, overriding resolver). No remote service can do this.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         domain: z.string().optional().describe("optional: focus the check on one domain"),
       },
@@ -544,7 +571,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
               );
             } else if (!match) {
               findings.push(
-                `/etc/hosts:${e.line} pins ${name} -> ${e.ip}, but live DNS says ${liveIp}. Your machine uses the hosts file, so you're talking to ${e.ip} (possibly stale).`,
+                `/etc/hosts:${e.line} pins ${name} -> ${e.ip}, but live DNS says ${untrusted(String(liveIp))}. Your machine uses the hosts file, so you're talking to ${e.ip} (possibly stale).`,
               );
             }
           }
@@ -552,7 +579,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         if (domain && entriesToCheck.length === 0) {
           const live = await resolveDns(domain, "A");
           correlations.push({ hostname: domain, hostsIp: null, liveDnsIp: live.records[0], match: null });
-          findings.push(`${domain} is not in /etc/hosts; resolution comes purely from DNS (${live.records[0] ?? "no answer"}).`);
+          findings.push(`${domain} is not in /etc/hosts; resolution comes purely from DNS (${untrusted(String(live.records[0] ?? "no answer"))}).`);
         }
 
         const summary =
@@ -571,6 +598,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Direct vs tunnel diff",
       description:
         "Compares egress identity and reachability from the default route vs. bound to a specific interface IP (e.g. your VPN interface). Reveals split-tunnel surprises and egress differences. Needs network access for the egress check.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         interface_ip: z
           .string()
@@ -622,6 +650,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "DNS leak / egress identity",
       description:
         "Reports your public egress IP and the DNS resolvers your system is actually using, and flags whether resolvers look like a local/ISP server (potential leak) vs a tunnel resolver. Heuristic. Needs network access for egress IP.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {},
     },
     async () =>
@@ -653,6 +682,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "WireGuard status",
       description:
         "Reads WireGuard interfaces and peers (via `wg show`): handshake recency, endpoints, allowed-IPs, transfer. Read-only. Flags peers with stale handshakes.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       inputSchema: {},
     },
     async () =>
@@ -685,6 +715,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Generate WireGuard peer config",
       description:
         "Generate a fresh WireGuard keypair and a ready-to-paste client config. Read-only — it does NOT modify any interface; it just prints the config and keys for you to use.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       inputSchema: {
         address: z.string().optional().describe("client tunnel address, e.g. 10.0.0.2/32"),
         server_public_key: z.string().optional().describe("the server's public key"),
@@ -721,6 +752,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Add / update WireGuard peer",
       description:
         "Add or update a peer on a WireGuard interface (`wg set`). Mutating: requires --enable-write, and runs as a dry-run unless confirm:true. Needs privileges to apply.",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
       inputSchema: {
         iface: z.string().describe("WireGuard interface, e.g. wg0"),
         public_key: z.string().describe("peer public key"),
@@ -754,6 +786,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Remove WireGuard peer",
       description:
         "Remove a peer from a WireGuard interface (`wg set ... remove`). Mutating: requires --enable-write, and runs as a dry-run unless confirm:true.",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
       inputSchema: {
         iface: z.string().describe("WireGuard interface, e.g. wg0"),
         public_key: z.string().describe("peer public key to remove"),
@@ -786,6 +819,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "Network overview",
       description: "Snapshot of local interfaces, resolvers, and WireGuard interfaces — quick context for the assistant.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       inputSchema: {},
     },
     async () =>
