@@ -17,9 +17,17 @@ jobs:
         with:
           node-version: "20"
       - run: npm ci && npm run build
-      - uses: charmbracelet/vhs-action@v2
-        with:
-          path: demo/demo.tape
+      # charmbracelet/vhs-action@v2 is broken (issue #459: bundled ffmpeg installer
+      # 404s on a removed BtbN build), so install the toolchain by hand instead.
+      - name: install vhs toolchain
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg ttyd
+          curl -fsSL -o /tmp/vhs.deb https://github.com/charmbracelet/vhs/releases/download/v0.11.0/vhs_0.11.0_amd64.deb
+          sudo dpkg -i /tmp/vhs.deb
+          vhs --version
+      - name: render demo gif
+        run: vhs demo/demo.tape
       - name: commit refreshed gif
         env:
           REF_NAME: ${{ github.ref_name }}   # branch the run was triggered from; via env to avoid run-block injection
