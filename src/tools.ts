@@ -54,9 +54,10 @@ function guardWrap(fn: () => Promise<ToolReturn>): Promise<ToolReturn> {
 // attacker-controllable and могут содержать prompt-injection payloads. The
 // delimiter marks them as untrusted data, not instructions. See SECURITY.md.
 function untrusted(s: string): string {
-  // Collapse newlines (the main injection breakout) plus spaces/hyphens, cap length.
-  // This is defense-in-depth, not a hard guarantee — see SECURITY.md.
-  const clean = s.replace(/[\r\n -]+/g, " ").slice(0, 512);
+  // Collapse newlines and all C0 control chars (the injection breakout) to a space,
+  // cap length. Hostnames stay intact (hyphens/dots untouched). Defense-in-depth,
+  // not a hard guarantee — see SECURITY.md.
+  const clean = s.replace(/[\x00-\x20]+/g, " ").slice(0, 512);
   return `⟦untrusted:${clean}⟧`;
 }
 
@@ -490,7 +491,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         md.push(`**Verdict:** ${verdict}`);
         md.push("");
         md.push("## DNS");
-        md.push(dns.records.length ? `- A: ${dns.records.join(", ")} (${dns.ms}ms)` : `- A: no answer (${dns.error ?? "none"})`);
+        md.push(dns.records.length ? `- A: ${untrusted(dns.records.join(", "))} (${dns.ms}ms)` : `- A: no answer (${dns.error ?? "none"})`);
         md.push("## Reachability");
         md.push(`- ping: ${ping.reachable ? `reachable via ${ping.method}${ping.rttMs != null ? ` ${ping.rttMs}ms` : ""}` : "unreachable"}`);
         md.push(`- TCP/${tcp.port}: ${tcp.open ? `open (${tcp.ms}ms)` : `closed/filtered (${tcp.error})`}`);
@@ -570,7 +571,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
               );
             } else if (!match) {
               findings.push(
-                `/etc/hosts:${e.line} pins ${name} -> ${e.ip}, but live DNS says ${liveIp}. Your machine uses the hosts file, so you're talking to ${e.ip} (possibly stale).`,
+                `/etc/hosts:${e.line} pins ${name} -> ${e.ip}, but live DNS says ${untrusted(String(liveIp))}. Your machine uses the hosts file, so you're talking to ${e.ip} (possibly stale).`,
               );
             }
           }
@@ -578,7 +579,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         if (domain && entriesToCheck.length === 0) {
           const live = await resolveDns(domain, "A");
           correlations.push({ hostname: domain, hostsIp: null, liveDnsIp: live.records[0], match: null });
-          findings.push(`${domain} is not in /etc/hosts; resolution comes purely from DNS (${live.records[0] ?? "no answer"}).`);
+          findings.push(`${domain} is not in /etc/hosts; resolution comes purely from DNS (${untrusted(String(live.records[0] ?? "no answer"))}).`);
         }
 
         const summary =
