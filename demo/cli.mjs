@@ -18,6 +18,18 @@ const c = {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const out = (s) => process.stdout.write(s);
 async function type(s, d = 45) { for (const ch of s) { out(ch); await sleep(d); } }
+// word-wrap a string on word boundaries to <= width chars per line
+const wrapWords = (s, width) => {
+  const words = s.replace(/\s+/g, " ").trim().split(" ");
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    if (cur && cur.length + 1 + w.length > width) { lines.push(cur); cur = w; }
+    else cur = cur ? `${cur} ${w}` : w;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+};
 
 // --- minimal MCP stdio client ---
 const srv = spawn("node", [join(root, "dist/index.js")], {
@@ -49,21 +61,32 @@ await type(`${c.white}why can't I reach api.acme.dev?${c.r}`);
 out("\n\n");
 await sleep(500);
 
-out(`${c.cyan}net_diagnose${c.r}     ${c.gray}DNS ${c.green}✓${c.gray}  TCP ${c.red}✗ timeout @10.0.0.5${c.r}\n`);
-await sleep(650);
-out(`${c.cyan}net_triangulate${c.r}  ${c.gray}you ${c.red}✗${c.gray}   US ${c.green}✓${c.gray}  EU ${c.green}✓${c.gray}  Asia ${c.green}✓${c.r}\n`);
-await sleep(650);
+// The two probe lines are the PLAN an agent would run — shown as intent,
+// not as captured output (offline they can't produce a real verdict:
+// net_diagnose hits DNS-fail on a fake domain, net_triangulate needs Globalping).
+out(`${c.gray}# an agent probes top-down — DNS, TCP, then worldwide:${c.r}\n`);
+await sleep(500);
+out(`${c.cyan}net_diagnose${c.r}     ${c.gray}→ DNS · ping · TCP · TLS · HTTP${c.r}\n`);
+await sleep(550);
+out(`${c.cyan}net_triangulate${c.r}  ${c.gray}→ here vs US / EU / Asia${c.r}\n`);
+await sleep(700);
 
+// config_correlate is the ONE genuine call — the catch no remote probe can make.
+out(`${c.gray}# but the catch no remote probe can make:${c.r}\n`);
+await sleep(400);
 const cc = await rpc("tools/call", { name: "config_correlate", arguments: { domain: "api.acme.dev" } });
 const finding = (cc.result?.structuredContent?.findings?.[0]) || cc.result?.content?.[0]?.text || "";
-out(`${c.cyan}config_correlate${c.r} ${c.gray}/etc/hosts:2  api.acme.dev → ${c.amber}10.0.0.5${c.r}\n`);
+out(`${c.cyan}config_correlate${c.r} ${c.gray}/etc/hosts:2  api.acme.dev → ${c.amber}10.0.0.5${c.r}  ${c.green}● live${c.r}\n`);
 await sleep(800);
 
 out("\n");
 out(`${c.amber}┃ ❯ It's your side.${c.r}\n`);
-out(`${c.amber}┃${c.r} ${c.white}${finding.replace(/\s+/g, " ").slice(0, 78)}${c.r}\n`);
+// Print the LIVE finding in full, wrapped on word boundaries — never slice mid-word.
+for (const line of wrapWords(finding, 78)) {
+  out(`${c.amber}┃${c.r} ${c.white}${line}${c.r}\n`);
+}
 out(`${c.amber}┃${c.r} ${c.white}It's live from US, EU & Asia — remove that line.${c.r}\n`);
-out(`${c.amber}┃${c.r} ${c.gray}— one diagnosis · local-first · zero telemetry${c.r}\n\n`);
+out(`${c.amber}┃${c.r} ${c.gray}— config_correlate is a real call · local-first · zero telemetry${c.r}\n\n`);
 
 await sleep(400);
 srv.kill();

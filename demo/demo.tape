@@ -9,7 +9,7 @@ Require node
 Set Shell "bash"
 Set FontSize 18
 Set Width 1200
-Set Height 660
+Set Height 720
 Set Padding 24
 Set Theme "Github Dark"
 Set TypingSpeed 0ms
@@ -22,4 +22,4 @@ Show
 Type "node demo/cli.mjs"
 Sleep 500ms
 Enter
-Sleep 9s
+Sleep 12s

@@ -211,11 +211,11 @@ node dist/index.js # or: npm run dev
 
 ## Demo
 
-The animation above is rendered offline via `assets/make_gif.py`. For an authentic
-recording from the **real** server, install [VHS](https://github.com/charmbracelet/vhs)
-and run `vhs demo/demo.tape` — it drives `demo/cli.mjs`, where `config_correlate` is a
-genuine tool call against `demo/hosts.fixture`. The `regenerate demo gif` GitHub Action
-keeps the recorded `assets/cli.gif` up to date.
+The animation is a real recording of the server: `vhs demo/demo.tape` drives
+`demo/cli.mjs`, where `config_correlate` is a genuine call against `demo/hosts.fixture`.
+The two probe lines above it (`net_diagnose`, `net_triangulate`) show **what an agent
+would run**; the stale-pin catch is the live call. The `regenerate demo gif` GitHub
+Action re-renders `assets/cli.gif` from the tape.
 
 ## Roadmap (v0.2+)
 
