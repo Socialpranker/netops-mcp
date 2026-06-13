@@ -91,7 +91,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         const r = await resolveDns(name, type ?? "A", dnsServer);
         const summary = r.error
           ? `DNS ${type ?? "A"} ${name} failed: ${r.error}`
-          : `${name} ${type ?? "A"} -> ${r.records.join(", ") || "(none)"} (${r.ms}ms${dnsServer ? ` via ${dnsServer}` : ""})`;
+          : `${name} ${type ?? "A"} -> ${r.records.length ? untrusted(r.records.join(", ")) : "(none)"} (${r.ms}ms${dnsServer ? ` via ${dnsServer}` : ""})`;
         return ok(summary, r as unknown as Record<string, unknown>);
       }),
   );
@@ -166,7 +166,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
               ? `EXPIRED ${-r.daysToExpiry}d ago`
               : `${r.daysToExpiry}d left`
             : "unknown expiry";
-        const valid = r.authorized ? "valid chain" : `INVALID: ${r.authorizationError}`;
+        const valid = r.authorized ? "valid chain" : `INVALID: ${untrusted(String(r.authorizationError ?? "unknown"))}`;
         return ok(
           `${host}:${r.port} ${r.protocol} ${r.cipher}, cert ${exp}, ${valid}, handshake ${r.handshakeMs}ms`,
           r as unknown as Record<string, unknown>,
@@ -191,7 +191,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
         const r = await httpProbe(url);
         if (!r.ok) return fail(`HTTP ${url} failed: ${r.error}`, r as any);
         return ok(
-          `HTTP ${r.status} ${r.statusText ?? ""} ${url}${r.redirects ? ` (${r.redirects} redirects)` : ""}, TTFB ${r.timing?.ttfbMs}ms total ${r.timing?.totalMs}ms`,
+          `HTTP ${r.status} ${r.statusText ? untrusted(r.statusText) : ""} ${url}${r.redirects ? ` (${r.redirects} redirects)` : ""}, TTFB ${r.timing?.ttfbMs}ms total ${r.timing?.totalMs}ms`,
           r as unknown as Record<string, unknown>,
         );
       }),
@@ -216,8 +216,8 @@ export function registerTools(server: McpServer, guard: Guard): void {
         const last = r.hops[r.hops.length - 1];
         const reached = last && last.host !== "*";
         const summary =
-          `${r.hops.length} hops to ${host}${reached ? ` (last: ${last.host}${last.rttMs != null ? ` ${last.rttMs}ms` : ""})` : " (did not complete)"}\n` +
-          r.hops.map((h) => `  ${h.hop}. ${h.host}${h.rttMs != null ? `  ${h.rttMs}ms` : ""}`).join("\n");
+          `${r.hops.length} hops to ${host}${reached ? ` (last: ${untrusted(last.host)}${last.rttMs != null ? ` ${last.rttMs}ms` : ""})` : " (did not complete)"}\n` +
+          r.hops.map((h) => `  ${h.hop}. ${h.host === "*" ? "*" : untrusted(h.host)}${h.rttMs != null ? `  ${h.rttMs}ms` : ""}`).join("\n");
         return ok(summary, r as unknown as Record<string, unknown>);
       }),
   );
@@ -294,10 +294,10 @@ export function registerTools(server: McpServer, guard: Guard): void {
         });
 
         const lines = checked.map((c) => {
-          if (!c.ok) return `  ✗ ${c.domain} — unreachable (${c.error})`;
+          if (!c.ok) return `  ✗ ${c.domain} — unreachable (${untrusted(String(c.error ?? "error"))})`;
           if (c.daysToExpiry == null) return `  ? ${c.domain} — no expiry info`;
-          if (c.daysToExpiry < 0) return `  ⚠ ${c.domain} — EXPIRED ${-c.daysToExpiry}d ago (${c.validTo})`;
-          if (c.daysToExpiry <= warn) return `  ⚠ ${c.domain} — expires in ${c.daysToExpiry}d (${c.validTo})`;
+          if (c.daysToExpiry < 0) return `  ⚠ ${c.domain} — EXPIRED ${-c.daysToExpiry}d ago (${untrusted(String(c.validTo))})`;
+          if (c.daysToExpiry <= warn) return `  ⚠ ${c.domain} — expires in ${c.daysToExpiry}d (${untrusted(String(c.validTo))})`;
           return `  ✓ ${c.domain} — ${c.daysToExpiry}d left`;
         });
         const flagged = checked.filter(
