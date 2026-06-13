@@ -78,6 +78,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "DNS lookup",
       description:
         "Resolve DNS records for a name. Supports A/AAAA/MX/TXT/NS/CNAME/SOA and an optional custom resolver.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         name: z.string().describe("hostname to resolve"),
         type: z.string().optional().describe("record type (default A)"),
@@ -103,6 +104,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Ping host",
       description:
         "Reachability check. Uses ICMP ping when available, falls back to a TCP connect (works without root).",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("host to ping"),
         tcp_port: z.number().optional().describe("port for TCP-ping fallback (default 443)"),
@@ -126,6 +128,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "TCP port check",
       description:
         "Check whether specific TCP ports on a host accept connections. This is a connectivity check of named ports — NOT a discovery scan. Capped by scope-guard.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("target host"),
         ports: z.array(z.number()).describe("list of ports to check"),
@@ -150,6 +153,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "TLS / certificate inspect",
       description:
         "Open a TLS connection and report certificate chain, expiry (days), SANs, protocol, cipher, handshake timing, and validation status.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("host"),
         port: z.number().optional().describe("port (default 443)"),
@@ -181,6 +185,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "HTTP probe",
       description:
         "GET a URL and report status, redirect chain, server header, and a timing breakdown (DNS / connect / TLS / TTFB / total).",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         url: z.string().describe("URL to probe"),
       },
@@ -203,6 +208,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "Traceroute",
       description: "Trace the network path to a host hop by hop, with per-hop latency. Wraps system traceroute/tracert.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("destination host"),
         max_hops: z.number().optional().describe("max hops (default 20)"),
@@ -229,6 +235,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "MTU black-hole detector",
       description:
         "Path-MTU discovery via Don't-Fragment pings. Detects the classic MTU black hole — small packets pass, large ones vanish with no ICMP reply — the reason connections establish but then hang on big transfers over VPN/PPPoE links.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         host: z.string().describe("host to probe the path MTU to"),
       },
@@ -249,6 +256,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "TLS certificate sweep",
       description:
         "Check TLS certificate expiry across many domains at once. Pass an explicit list, and/or config paths (nginx/Caddy/Traefik/compose files or dirs) to auto-extract the domains. Sorts by soonest expiry and flags certs expiring within warn_days.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         domains: z.array(z.string()).optional().describe("explicit domains to check"),
         paths: z.array(z.string()).optional().describe("config files/dirs to extract domains from"),
@@ -318,6 +326,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Diagnose connectivity (why can't I reach X)",
       description:
         "One-shot diagnosis: resolves DNS, pings, checks TCP, inspects TLS, and probes HTTP for a target, then returns a verdict on where the failure is.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         target: z.string().describe("hostname or URL to diagnose"),
       },
@@ -383,6 +392,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Is it me or them? (local + global probes)",
       description:
         "Runs the same reachability test from THIS machine and from Globalping's worldwide probes, then verdicts whether a failure is your side, your network/ISP, or the target. Disabled in --local-only mode.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         target: z.string().describe("hostname or URL"),
         locations: z.array(z.string()).optional().describe("probe regions, e.g. US/EU/Asia"),
@@ -432,6 +442,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Shareable diagnosis report",
       description:
         "Runs a full battery of probes against a target and returns a clean Markdown report you can paste straight into a bug report or support ticket. Includes DNS, reachability, TLS, HTTP timing, optional global probes, and local context.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         target: z.string().describe("hostname or URL to diagnose"),
         include_global: z
@@ -519,6 +530,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Correlate local config with live DNS",
       description:
         "Reads /etc/hosts and resolv.conf and cross-checks them against live DNS — surfaces the hidden config that explains weird resolution (stale /etc/hosts pin, overriding resolver). No remote service can do this.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         domain: z.string().optional().describe("optional: focus the check on one domain"),
       },
@@ -582,6 +594,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Direct vs tunnel diff",
       description:
         "Compares egress identity and reachability from the default route vs. bound to a specific interface IP (e.g. your VPN interface). Reveals split-tunnel surprises and egress differences. Needs network access for the egress check.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {
         interface_ip: z
           .string()
@@ -633,6 +646,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "DNS leak / egress identity",
       description:
         "Reports your public egress IP and the DNS resolvers your system is actually using, and flags whether resolvers look like a local/ISP server (potential leak) vs a tunnel resolver. Heuristic. Needs network access for egress IP.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {},
     },
     async () =>
@@ -664,6 +678,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "WireGuard status",
       description:
         "Reads WireGuard interfaces and peers (via `wg show`): handshake recency, endpoints, allowed-IPs, transfer. Read-only. Flags peers with stale handshakes.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       inputSchema: {},
     },
     async () =>
@@ -696,6 +711,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Generate WireGuard peer config",
       description:
         "Generate a fresh WireGuard keypair and a ready-to-paste client config. Read-only — it does NOT modify any interface; it just prints the config and keys for you to use.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       inputSchema: {
         address: z.string().optional().describe("client tunnel address, e.g. 10.0.0.2/32"),
         server_public_key: z.string().optional().describe("the server's public key"),
@@ -732,6 +748,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Add / update WireGuard peer",
       description:
         "Add or update a peer on a WireGuard interface (`wg set`). Mutating: requires --enable-write, and runs as a dry-run unless confirm:true. Needs privileges to apply.",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
       inputSchema: {
         iface: z.string().describe("WireGuard interface, e.g. wg0"),
         public_key: z.string().describe("peer public key"),
@@ -765,6 +782,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
       title: "Remove WireGuard peer",
       description:
         "Remove a peer from a WireGuard interface (`wg set ... remove`). Mutating: requires --enable-write, and runs as a dry-run unless confirm:true.",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
       inputSchema: {
         iface: z.string().describe("WireGuard interface, e.g. wg0"),
         public_key: z.string().describe("peer public key to remove"),
@@ -797,6 +815,7 @@ export function registerTools(server: McpServer, guard: Guard): void {
     {
       title: "Network overview",
       description: "Snapshot of local interfaces, resolvers, and WireGuard interfaces — quick context for the assistant.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       inputSchema: {},
     },
     async () =>
