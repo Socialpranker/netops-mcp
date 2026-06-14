@@ -2,6 +2,7 @@
   "name": "netops-mcp",
   "version": "0.1.0",
   "description": "Local-first network diagnostics & tunnel/proxy MCP server. Diagnose connectivity and inspect your WireGuard/proxy setup from your AI assistant — from your own machine, not a remote probe.",
+  "author": "Socialpranker (https://github.com/Socialpranker)",
   "type": "module",
   "homepage": "https://github.com/Socialpranker/netops-mcp#readme",
   "repository": {
