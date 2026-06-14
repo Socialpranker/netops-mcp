@@ -15,8 +15,8 @@
     <rect x="0" y="40" width="86" height="13" rx="3.5" fill="url(#verdict)"/>
     <rect x="0" y="60" width="86" height="13" rx="3.5" fill="#8B949E"/>
     <g stroke="url(#verdict)" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="138" y1="46.5" x2="100" y2="46.5"/>
-      <path d="M111 38 L99 46.5 L111 55"/>
+      <line x1="128" y1="46.5" x2="92" y2="46.5"/>
+      <path d="M104 38 L92 46.5 L104 55"/>
     </g>
   </g>
 
