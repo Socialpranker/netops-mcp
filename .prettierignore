@@ -1,0 +1,14 @@
+dist
+node_modules
+assets
+*.gif
+*.svg
+*.png
+
+# Research archive, long-form docs & GitHub templates — hand-authored prose,
+# not code. Don't reflow them.
+research
+docs
+.github
+*.md
+LICENSE
