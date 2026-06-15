@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Social preview image (`assets/og-image.png`, 1280×640) generated from `assets/og-image.svg`.
 - `CHANGELOG.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) and `.github/FUNDING.yml`.
 - `author` field in `package.json`.
+- Unit test suite (`node:test`, no new runtime deps): 36 cases covering the scope-guard
+  (allow/deny matching, CIDR, port caps, write/network gates, env/argv parsing) and the
+  fragile parsers (`extractDomains`, the `wg set` argv builder, hosts-file reader).
+  Run with `npm run test:unit`; the full `npm test` does build + unit + smoke.
+- ESLint (typescript-eslint, type-aware) and Prettier with `lint` / `format` / `format:check`
+  scripts and a dedicated CI lint job. `prepublishOnly` now runs lint + the full test suite.
 
 ### Changed
 
