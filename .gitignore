@@ -6,5 +6,6 @@ dist/
 assets/_verify_*.png
 .superpowers/
 .claude/
+.playwright-mcp/
 # приватный черновик постов — личные пометки «не постить», остальная research/ публична намеренно
 research/netops-mcp-improvements/demand-validation-posts.md
