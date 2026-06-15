@@ -25,7 +25,8 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "smoke": "node scripts/smoke.mjs",
-    "test": "npm run build && npm run smoke",
+    "test:unit": "node --test \"test/**/*.test.mjs\"",
+    "test": "npm run build && npm run test:unit && npm run smoke",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
