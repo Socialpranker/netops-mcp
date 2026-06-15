@@ -100,9 +100,7 @@ export class Guard {
   /** Gate for outbound third-party calls. */
   assertNetworkAllowed(service: string): void {
     if (this.cfg.localOnly) {
-      throw new GuardError(
-        `External service "${service}" is disabled in --local-only mode.`,
-      );
+      throw new GuardError(`External service "${service}" is disabled in --local-only mode.`);
     }
   }
 }

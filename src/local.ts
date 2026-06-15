@@ -18,9 +18,7 @@ export interface HostsEntry {
 export async function readHostsFile(): Promise<HostsEntry[]> {
   const path =
     process.env.NETOPS_HOSTS_FILE ??
-    (process.platform === "win32"
-      ? "C:\\Windows\\System32\\drivers\\etc\\hosts"
-      : "/etc/hosts");
+    (process.platform === "win32" ? "C:\\Windows\\System32\\drivers\\etc\\hosts" : "/etc/hosts");
   try {
     const text = await readFile(path, "utf8");
     const out: HostsEntry[] = [];
@@ -39,12 +37,23 @@ export async function readHostsFile(): Promise<HostsEntry[]> {
 
 export async function readResolvers(): Promise<string[]> {
   if (process.platform === "win32") {
-    const r = await run("powershell", [
-      "-NoProfile",
-      "-Command",
-      "Get-DnsClientServerAddress | Select-Object -ExpandProperty ServerAddresses",
-    ], 5000);
-    return r.ok ? uniq(r.stdout.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)) : [];
+    const r = await run(
+      "powershell",
+      [
+        "-NoProfile",
+        "-Command",
+        "Get-DnsClientServerAddress | Select-Object -ExpandProperty ServerAddresses",
+      ],
+      5000,
+    );
+    return r.ok
+      ? uniq(
+          r.stdout
+            .split(/\r?\n/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+        )
+      : [];
   }
   try {
     const text = await readFile("/etc/resolv.conf", "utf8");
@@ -74,7 +83,11 @@ export interface WgInterface {
 }
 
 /** Parse `wg show all dump` if available; otherwise return null (not installed / no perms). */
-export async function wgStatus(): Promise<{ interfaces: WgInterface[]; available: boolean; note?: string }> {
+export async function wgStatus(): Promise<{
+  interfaces: WgInterface[];
+  available: boolean;
+  note?: string;
+}> {
   if (!(await hasBinary("wg"))) {
     return { interfaces: [], available: false, note: "wireguard-tools (`wg`) not found on PATH" };
   }
@@ -120,9 +133,27 @@ const DOMAIN_RE = /\b((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,})\b/gi;
 const SKIP = new Set(["example.org", "example.net", "localhost.localdomain"]);
 // Last labels that signal a config key / filename, not a real TLD.
 const BAD_LAST_LABEL = new Set([
-  "rule", "conf", "yml", "yaml", "json", "toml", "ini", "lock", "pid",
-  "sock", "bak", "tmpl", "tpl", "dist", "log", "svc", "middlewares",
-  "routers", "services", "loadbalancer", "entrypoints",
+  "rule",
+  "conf",
+  "yml",
+  "yaml",
+  "json",
+  "toml",
+  "ini",
+  "lock",
+  "pid",
+  "sock",
+  "bak",
+  "tmpl",
+  "tpl",
+  "dist",
+  "log",
+  "svc",
+  "middlewares",
+  "routers",
+  "services",
+  "loadbalancer",
+  "entrypoints",
 ]);
 
 /** Extract candidate hostnames from nginx / Caddy / Traefik / compose configs. */
@@ -189,7 +220,11 @@ export const WG_KEY_RE = /^[A-Za-z0-9+/]{42,43}=$/;
 export const WG_IFACE_RE = /^[A-Za-z0-9_.-]{1,15}$/;
 
 /** Generate a fresh WireGuard keypair (private + public). Read-only. */
-export async function wgGenKeypair(): Promise<{ privateKey?: string; publicKey?: string; error?: string }> {
+export async function wgGenKeypair(): Promise<{
+  privateKey?: string;
+  publicKey?: string;
+  error?: string;
+}> {
   if (!(await hasBinary("wg"))) return { error: "`wg` (wireguard-tools) not found on PATH" };
   const priv = await run("wg", ["genkey"], 4000);
   if (!priv.ok) return { error: priv.stderr.trim() || "wg genkey failed" };
@@ -229,7 +264,9 @@ export function interfaces(): Record<string, string[]> {
   const nets = os.networkInterfaces();
   const out: Record<string, string[]> = {};
   for (const [name, addrs] of Object.entries(nets)) {
-    out[name] = (addrs ?? []).map((a) => `${a.address}/${a.family}${a.internal ? " (internal)" : ""}`);
+    out[name] = (addrs ?? []).map(
+      (a) => `${a.address}/${a.family}${a.internal ? " (internal)" : ""}`,
+    );
   }
   return out;
 }

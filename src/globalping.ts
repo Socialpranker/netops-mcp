@@ -44,11 +44,15 @@ export async function globalpingTest(
       limit,
       measurementOptions: type === "ping" ? { packets: 3 } : undefined,
     };
-    const created = await fetchJson<CreateResp>(BASE, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    }, timeoutMs);
+    const created = await fetchJson<CreateResp>(
+      BASE,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+      timeoutMs,
+    );
     if (!created?.id) return { type, target, results: [], error: "no measurement id returned" };
 
     // Poll until finished.

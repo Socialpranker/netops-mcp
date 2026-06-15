@@ -54,7 +54,9 @@ const waitFor = (id, timeoutMs = 8000) =>
 const die = (msg) => {
   console.error(`✗ smoke failed: ${msg}`);
   if (stderr.trim()) console.error(`--- server stderr ---\n${stderr}`);
-  try { child.kill("SIGKILL"); } catch {}
+  try {
+    child.kill("SIGKILL");
+  } catch {}
   process.exit(1);
 };
 
@@ -81,11 +83,22 @@ child.on("error", (e) => die(`could not spawn server: ${e.message}`));
   const tools = list?.result?.tools;
   if (!Array.isArray(tools)) die(`tools/list returned no tools array: ${JSON.stringify(list)}`);
   if (tools.length !== EXPECTED_TOOLS)
-    die(`expected ${EXPECTED_TOOLS} tools, got ${tools.length}: ${tools.map((t) => t.name).join(", ")}`);
+    die(
+      `expected ${EXPECTED_TOOLS} tools, got ${tools.length}: ${tools.map((t) => t.name).join(", ")}`,
+    );
 
-  console.log(`✓ ${init.result.serverInfo.name} v${init.result.serverInfo.version} — ${tools.length} tools listed over stdio`);
-  try { child.kill("SIGTERM"); } catch {}
-  setTimeout(() => { try { child.kill("SIGKILL"); } catch {} process.exit(0); }, 300);
+  console.log(
+    `✓ ${init.result.serverInfo.name} v${init.result.serverInfo.version} — ${tools.length} tools listed over stdio`,
+  );
+  try {
+    child.kill("SIGTERM");
+  } catch {}
+  setTimeout(() => {
+    try {
+      child.kill("SIGKILL");
+    } catch {}
+    process.exit(0);
+  }, 300);
 })();
 
 setTimeout(() => die("overall timeout (15s)"), 15000);

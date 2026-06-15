@@ -2,12 +2,7 @@
 // Runs against the built output (dist/) so we test exactly what ships.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  Guard,
-  GuardError,
-  DEFAULT_GUARD,
-  guardFromEnv,
-} from "../dist/guard.js";
+import { Guard, GuardError, DEFAULT_GUARD, guardFromEnv } from "../dist/guard.js";
 
 const mk = (over = {}) => new Guard({ ...DEFAULT_GUARD, audit: false, ...over });
 

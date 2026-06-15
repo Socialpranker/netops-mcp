@@ -23,16 +23,12 @@ export interface DnsResult {
   error?: string;
 }
 
-export async function resolveDns(
-  name: string,
-  type = "A",
-  server?: string,
-): Promise<DnsResult> {
+export async function resolveDns(name: string, type = "A", server?: string): Promise<DnsResult> {
   const r = server ? new dns.promises.Resolver() : resolver;
   if (server) r.setServers([server]);
   const start = performance.now();
   try {
-    const records = (await (r.resolve(name, type as any) as Promise<unknown>)) as unknown;
+    const records = await r.resolve(name, type as any);
     const flat = Array.isArray(records)
       ? records.map((x) => (typeof x === "string" ? x : JSON.stringify(x)))
       : [JSON.stringify(records)];
@@ -121,9 +117,7 @@ export function tlsInspect(host: string, port = 443, timeoutMs = 8000): Promise<
           validTo,
           daysToExpiry: days,
           authorized: sock.authorized,
-          authorizationError: sock.authorizationError
-            ? String(sock.authorizationError)
-            : undefined,
+          authorizationError: sock.authorizationError ? String(sock.authorizationError) : undefined,
         });
         sock.end();
       },
@@ -145,7 +139,13 @@ export interface HttpResult {
   statusText?: string;
   finalUrl?: string;
   redirects?: number;
-  timing?: { dnsMs?: number; connectMs?: number; tlsMs?: number; ttfbMs?: number; totalMs?: number };
+  timing?: {
+    dnsMs?: number;
+    connectMs?: number;
+    tlsMs?: number;
+    ttfbMs?: number;
+    totalMs?: number;
+  };
   server?: string;
   error?: string;
   localAddress?: string;
@@ -170,7 +170,10 @@ export function httpProbe(
       const isHttps = url.protocol === "https:";
       const lib = isHttps ? https : http;
       const t0 = performance.now();
-      let tDns = 0, tConnect = 0, tTls = 0, tFirstByte = 0;
+      let tDns = 0,
+        tConnect = 0,
+        tTls = 0,
+        tFirstByte = 0;
 
       const req = lib.request(
         url,
@@ -219,10 +222,22 @@ export function httpProbe(
       });
       req.once("timeout", () => {
         req.destroy();
-        resolve({ url: rawUrl, ok: false, error: "timeout", redirects, localAddress: opts.localAddress });
+        resolve({
+          url: rawUrl,
+          ok: false,
+          error: "timeout",
+          redirects,
+          localAddress: opts.localAddress,
+        });
       });
       req.once("error", (e) =>
-        resolve({ url: rawUrl, ok: false, error: errMsg(e), redirects, localAddress: opts.localAddress }),
+        resolve({
+          url: rawUrl,
+          ok: false,
+          error: errMsg(e),
+          redirects,
+          localAddress: opts.localAddress,
+        }),
       );
       req.end();
     });
@@ -295,7 +310,11 @@ export async function tracePath(host: string, maxHops = 20): Promise<TraceResult
     }
     const ip = rest.match(/(\d{1,3}(?:\.\d{1,3}){3}|[0-9a-f:]{3,})/i);
     const ms = rest.match(/([\d.]+)\s*ms/);
-    hops.push({ hop: hopNum, host: ip ? ip[1] : rest.split(/\s+/)[0], rttMs: ms ? Number(ms[1]) : undefined });
+    hops.push({
+      hop: hopNum,
+      host: ip ? ip[1] : rest.split(/\s+/)[0],
+      rttMs: ms ? Number(ms[1]) : undefined,
+    });
   }
   return { host, supported: true, hops, raw: r.stdout.trim() };
 }
@@ -323,8 +342,10 @@ export async function mtuProbe(host: string, low = 1200, high = 1472): Promise<M
   const samples: { payload: number; passed: boolean }[] = [];
   const dfPing = async (size: number): Promise<"pass" | "fail" | "local"> => {
     let args: string[];
-    if (process.platform === "win32") args = ["-f", "-l", String(size), "-n", "1", "-w", "2000", host];
-    else if (process.platform === "darwin") args = ["-D", "-s", String(size), "-c", "1", "-t", "2", host];
+    if (process.platform === "win32")
+      args = ["-f", "-l", String(size), "-n", "1", "-w", "2000", host];
+    else if (process.platform === "darwin")
+      args = ["-D", "-s", String(size), "-c", "1", "-t", "2", host];
     else args = ["-M", "do", "-s", String(size), "-c", "1", "-W", "2", host];
     const r = await run("ping", args, 5000);
     const out = `${r.stdout}\n${r.stderr}`.toLowerCase();
@@ -349,7 +370,10 @@ export async function mtuProbe(host: string, low = 1200, high = 1472): Promise<M
     };
   }
 
-  let lo = low, hi = high, best = low, sawFail = false;
+  let lo = low,
+    hi = high,
+    best = low,
+    sawFail = false;
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
     const res = await dfPing(mid);

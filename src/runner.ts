@@ -13,11 +13,7 @@ export interface RunResult {
   timedOut: boolean;
 }
 
-export function run(
-  cmd: string,
-  args: string[],
-  timeoutMs = 8000,
-): Promise<RunResult> {
+export function run(cmd: string, args: string[], timeoutMs = 8000): Promise<RunResult> {
   return new Promise((resolve) => {
     const child = execFile(
       cmd,
