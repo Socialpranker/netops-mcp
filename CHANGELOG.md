@@ -20,12 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Run with `npm run test:unit`; the full `npm test` does build + unit + smoke.
 - ESLint (typescript-eslint, type-aware) and Prettier with `lint` / `format` / `format:check`
   scripts and a dedicated CI lint job. `prepublishOnly` now runs lint + the full test suite.
+- README: "A network tool you can hand your assistant safely" section with a verifiable
+  trust-comparison table (netops-mcp vs alpadalar/netops-mcp, globalping-mcp, ProbeOps)
+  across read-only / no-shell / untrusted-input wrapper / zero-telemetry / local-first /
+  WireGuard / transport, and a `shell-none` badge.
 
 ### Changed
 
+- README repositioned around "diagnosis with a verdict, locally": new tagline
+  *"Network diagnosis that tells you whose side the problem is on — locally"*; the
+  "What is this?" section now leads with the pain (a site that loads for everyone but you)
+  and the contrast against cloud checkers that probe from a data center and can't see your
+  machine; "Why it's different" attributes verdicts to the right tools (`net_triangulate`
+  for the global YOUR/THEIR-SIDE call, `config_correlate` for the `/etc/hosts` catch) and
+  adds the no-shell / untrusted-wrapper safety framing. No "AI-powered", no marketing buzzwords.
 - README restructured for the GitHub landing page: hero with logo, table of contents,
-  and the tool reference folded into a collapsible `<details>` block. Wording is unchanged —
-  only ordering and presentation.
+  and the tool reference folded into a collapsible `<details>` block.
 
 ### Note
 
