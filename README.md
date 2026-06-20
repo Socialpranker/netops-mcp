@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>Diagnose connectivity and inspect your tunnels — locally, from your AI assistant.</strong>
+  <strong>Network diagnosis that tells you whose side the problem is on — locally.</strong>
 </p>
 
 <p align="center">
@@ -15,6 +15,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white" alt="Node ≥20">
   <img src="https://img.shields.io/badge/MCP-stdio-7C3AED" alt="MCP stdio server">
+  <img src="https://img.shields.io/badge/shell-none-2EA043" alt="No shell execution">
   <img src="https://img.shields.io/badge/telemetry-none-444" alt="Zero telemetry">
 </p>
 
@@ -27,6 +28,7 @@
 
 - [What is this?](#what-is-this)
 - [Why it's different](#why-its-different)
+- [A network tool you can hand your assistant safely](#a-network-tool-you-can-hand-your-assistant-safely)
 - [What you actually get back](#what-you-actually-get-back)
 - [Tools (v0.1)](#tools-v01)
 - [Install](#install)
@@ -45,37 +47,55 @@
 
 ## What is this?
 
-You ask your AI assistant *"why can't I reach this site?"* — and normally it just runs `ping`/`dig`/`curl` and dumps the raw output back at you. You're left to interpret it yourself.
+The site loads for everyone but you. Your assistant runs `ping`/`dig`/`curl`, dumps three screens of records, RTTs and exit codes, and leaves you to decode them. A cloud uptime checker is no better — it pings from its own data center, sees the public internet is fine, and reports *"up."* True for the data center, useless to you: the checker was never on your machine, so it can't see the reason.
 
-**netops-mcp gives your assistant a verdict instead of a data dump.** Not *"here's what ping said"* — but *"it's your side: line 2 of your `/etc/hosts` is pinning the site to a dead address."*
+netops-mcp runs **on your machine**. That single fact unlocks the layer cloud probes are structurally blind to — your `/etc/hosts`, your VPN routes, your local resolvers, your homelab. It walks every hop between you and the host (DNS → ping → TCP → TLS → HTTP), cross-checks against worldwide probes via Globalping, and returns a **verdict** instead of raw output: which side the fault is on, and why.
 
-The catch: it runs **on your machine**, so it sees what no cloud service can — your home network, your VPN, your local config.
+So when a site is "down for you but up for the world," you don't get *"ping says 100% loss."* You get *"`/etc/hosts:2` pins it to a dead `10.0.0.5`; that's why."* — the catch a remote probe can't make, because the offending line lives on your disk.
 
 ```
-            "Why can't I reach api.example.com?"
-                          │
-                          ▼
-        ┌─────────────────────────────────────┐
-        │  netops-mcp  (runs on YOUR machine) │
-        │                                     │
-        │   DNS → ping → TCP → TLS → HTTP     │  ← checks every layer
-        │   + asks Globalping: up elsewhere?  │  ← "is it me or them?"
-        │   + reads your /etc/hosts           │  ← the thing no remote probe sees
-        └─────────────────────────────────────┘
-                          │
-                          ▼
-   "It's YOUR side. /etc/hosts:2 pins it to a stale 10.0.0.5.
-    The site is live from the US, EU & Asia — remove that line."
+   Cloud checker                      netops-mcp (on YOUR machine)
+   ─────────────                      ────────────────────────────
+   probes from a data center          probes from where YOU are
+   sees: the public internet          sees: /etc/hosts, VPN, resolvers,
+                                             homelab — AND the public net
+        │                                   │
+        ▼                                   ▼  DNS→ping→TCP→TLS→HTTP
+   "Site is up. ✓"                     + Globalping: up elsewhere?
+   (true — and no help                      │
+    to you)                                 ▼
+                              "YOUR SIDE: down for you but reachable
+                               from 3/3 global probes. /etc/hosts:2
+                               pins it to a stale 10.0.0.5 — remove it."
 ```
 
-In short: **a translator between "the network is broken" and "here's the exact cause."**
+In short: **a translator between *"the network is broken"* and *"here's the exact line that's breaking it."*** Raw output tells you what happened; netops-mcp tells you what to do about it.
 
 ## Why it's different
 
-- **Local-first — it sees what cloud tools can't.** Probes run from *your* host, so it sees your homelab, your VPN, your `/etc/hosts`, your resolvers. A stale `/etc/hosts` pin breaks a site for *you* while it works for everyone else — and a SaaS probing from its own data center is structurally blind to it. netops-mcp catches it.
-- **Verdicts, not data.** Instead of dumping raw output, `net_diagnose` and `net_triangulate` reason across DNS / TCP / TLS / HTTP and your local config and tell you *which side* the fault is on — yours or theirs. One answer, not a wall of text to re-read.
-- **Safe by default.** Read-only. No shell (every system call is `execFile` with an argv array, never a string). Anti-scan caps, allow/deny lists, audit log to stderr, zero telemetry. The WireGuard write ops are behind a flag *and* dry-run unless you explicitly confirm. See [SECURITY.md](./SECURITY.md).
+- **Sees what cloud probes structurally can't.** A SaaS checker fires from its own data center, so it's blind to the things that actually break a site *for you* — a stale `/etc/hosts` pin, a VPN route, a captive local resolver. Running on your host, `config_correlate` reads them directly. That's why it can say `/etc/hosts:2 pins api.example.com -> 10.0.0.5; this OVERRIDES DNS` while a remote probe insists everything is fine.
+- **A verdict, not a data dump.** `net_triangulate` runs the same reachability test from your machine *and* from Globalping, then names the side at fault: `YOUR SIDE: api.example.com is down for you but reachable from 3/3 global probes` versus `THEIR SIDE: ... unreachable from you AND from all 3 global probes`. `net_diagnose` walks DNS → ping → TCP → TLS → HTTP locally and verdicts where the chain breaks. One answer with the raw probes underneath it — not a wall of output to interpret yourself.
+- **Safe by default.** Read-only. No shell — every system call is `execFile` with an argv array, never a string, so there's nothing for a hostile hostname to inject into. Untrusted output is wrapped before it reaches the model, anti-scan caps and allow/deny lists are on, audit goes to stderr, and telemetry is zero. WireGuard writes are flag-gated and dry-run unless you confirm. That safety is also why the verdicts are trustworthy: every claim ships with the raw data under it, so you verify rather than take it on faith. See [SECURITY.md](./SECURITY.md).
 - **Few moving parts.** DNS, TCP, TLS and HTTP probing are pure Node — no `dig`, `curl`, or `openssl` shelled out — so it works even in slim containers or locked-down images where those aren't installed. `ping` / `traceroute` / `wg` are used when present and skipped gracefully when not.
+
+## A network tool you can hand your assistant safely
+
+Giving an AI assistant a network tool means giving it a blast radius. The defenses below are verifiable by reading the source — not promises from a vendor dashboard. Every `netops-mcp` cell is backed by code you can audit before you run it; competitor cells follow published behavior, and axes we can't confirm from the outside are left blank rather than guessed.
+
+| Trust axis | netops-mcp | [alpadalar/netops-mcp][a] | [globalping-mcp][g] | ProbeOps MCP |
+|---|:---:|:---:|:---:|:---:|
+| Read-only by default | ✓ | — | — | — |
+| No shell execution | ✓ | — | — | — |
+| Untrusted-input wrapper | ✓ | ✗ | ✗ | ✗ |
+| Zero telemetry | ✓ | — | — | ✗ |
+| Local-first (sees your machine) | ✓ | ✗ | ✗ | ✗ |
+| WireGuard | ✓ | ✗ | ✗ | ✗ |
+| Transport | stdio (local) | remote Docker | remote HTTP/SSE | stdio + remote SaaS |
+
+[a]: https://github.com/alpadalar/netops-mcp
+[g]: https://github.com/jsdelivr/globalping-mcp
+
+"No shell" means every system call goes through `execFile` with an argv array — never a shell string — so a hostile hostname has nothing to inject into. The "untrusted-input wrapper" fences off any string that came from the network (DNS records, cert fields, HTTP status lines) before it reaches the model, blunting prompt-injection via DNS TXT or banners. Read the [security model](./SECURITY.md) for the full threat picture.
 
 ## What you actually get back
 
