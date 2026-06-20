@@ -186,6 +186,26 @@ test("guardFromEnv: NETOPS_*=1 env equivalents to flags", () => {
   }
 });
 
+test("guardFromEnv: NETOPS_* accept truthy strings, reject falsy ones", () => {
+  const saved = { ...process.env };
+  try {
+    // truthy: "true"/"yes"/"on" (case-insensitive) behave like "1" — needed so the
+    // .mcpb bundle's boolean toggles, which serialize to "true"/"false", work.
+    for (const v of ["true", "TRUE", "yes", "on", "1"]) {
+      process.env.NETOPS_LOCAL_ONLY = v;
+      assert.equal(guardFromEnv([]).cfg.localOnly, true, `expected truthy for ${v}`);
+    }
+    // falsy: "false"/"0"/"" must NOT enable the flag
+    for (const v of ["false", "0", "", "no", "off"]) {
+      process.env.NETOPS_LOCAL_ONLY = v;
+      assert.equal(guardFromEnv([]).cfg.localOnly, false, `expected falsy for "${v}"`);
+    }
+  } finally {
+    if (saved.NETOPS_LOCAL_ONLY === undefined) delete process.env.NETOPS_LOCAL_ONLY;
+    else process.env.NETOPS_LOCAL_ONLY = saved.NETOPS_LOCAL_ONLY;
+  }
+});
+
 test("guardFromEnv: invalid NETOPS_MAX_PORTS is ignored (keeps default)", () => {
   const saved = process.env.NETOPS_MAX_PORTS;
   process.env.NETOPS_MAX_PORTS = "not-a-number";

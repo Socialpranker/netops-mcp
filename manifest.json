@@ -1,0 +1,152 @@
+{
+  "manifest_version": "0.3",
+  "name": "netops-mcp",
+  "display_name": "netops-mcp — local-first network diagnostics",
+  "version": "0.1.0",
+  "description": "Network diagnosis that tells you whose side the problem is on — locally.",
+  "long_description": "netops-mcp runs network diagnostics on **your own machine**, so it sees what cloud probes structurally can't — your `/etc/hosts`, VPN routes, local resolvers and WireGuard. Instead of dumping raw `ping`/`dig`/`curl` output, it returns a **verdict**: which side the fault is on, yours or theirs, with the raw probe data underneath it.\n\nSafe by default: read-only, no shell execution (every system call is `execFile` with an argv array), untrusted network output is wrapped before it reaches the model, and zero telemetry. The WireGuard write tools are flag-gated and dry-run unless you confirm.",
+  "author": {
+    "name": "Socialpranker",
+    "url": "https://github.com/Socialpranker"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Socialpranker/netops-mcp"
+  },
+  "homepage": "https://github.com/Socialpranker/netops-mcp#readme",
+  "documentation": "https://github.com/Socialpranker/netops-mcp#readme",
+  "support": "https://github.com/Socialpranker/netops-mcp/issues",
+  "license": "MIT",
+  "keywords": [
+    "network",
+    "diagnostics",
+    "wireguard",
+    "vpn",
+    "proxy",
+    "dns",
+    "tls",
+    "devops",
+    "local-first"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "NETOPS_LOCAL_ONLY": "${user_config.local_only}",
+        "NETOPS_ENABLE_WRITE": "${user_config.enable_write}",
+        "NETOPS_ALLOW": "${user_config.allow}",
+        "NETOPS_DENY": "${user_config.deny}",
+        "NETOPS_MAX_PORTS": "${user_config.max_ports}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "net_diagnose",
+      "description": "One-shot 'why can't I reach X' — DNS to HTTP, returns a verdict"
+    },
+    {
+      "name": "net_triangulate",
+      "description": "Is it me or them? Local probe vs Globalping worldwide"
+    },
+    {
+      "name": "diagnosis_bundle",
+      "description": "Full probe battery rendered as a shareable Markdown report"
+    },
+    {
+      "name": "config_correlate",
+      "description": "Cross-check /etc/hosts against live DNS for stale pins"
+    },
+    { "name": "net_overview", "description": "Interfaces + resolvers + WireGuard snapshot" },
+    { "name": "dns_lookup", "description": "Resolve DNS records, optional custom resolver" },
+    { "name": "net_ping", "description": "ICMP with TCP-ping fallback (no root needed)" },
+    {
+      "name": "tcp_port_check",
+      "description": "Connectivity check of named ports (capped, not a scan)"
+    },
+    {
+      "name": "tls_inspect",
+      "description": "Cert chain, expiry, SANs, protocol/cipher, handshake timing"
+    },
+    {
+      "name": "http_probe",
+      "description": "Status, redirects, DNS/connect/TLS/TTFB timing breakdown"
+    },
+    { "name": "traceroute", "description": "Hop-by-hop path with per-hop latency" },
+    { "name": "mtu_blackhole", "description": "Path-MTU discovery; catches MTU black holes" },
+    {
+      "name": "cert_sweep",
+      "description": "TLS expiry across domains, auto-extracted from proxy configs"
+    },
+    {
+      "name": "tunnel_diff",
+      "description": "Direct vs tunnel egress identity — split-tunnel leak detection"
+    },
+    {
+      "name": "dns_leak_check",
+      "description": "Egress IP + resolvers actually used (leak heuristics)"
+    },
+    {
+      "name": "wg_status",
+      "description": "WireGuard interfaces/peers, stale-handshake flags (read-only)"
+    },
+    {
+      "name": "wg_config_generate",
+      "description": "Fresh keypair + ready-to-paste client config (read-only)"
+    },
+    {
+      "name": "wg_peer_add",
+      "description": "Add/update a WireGuard peer (write-gated, dry-run by default)"
+    },
+    {
+      "name": "wg_peer_remove",
+      "description": "Remove a WireGuard peer (write-gated, dry-run by default)"
+    }
+  ],
+  "tools_generated": false,
+  "user_config": {
+    "local_only": {
+      "type": "boolean",
+      "title": "Local-only mode",
+      "description": "Disable all third-party calls (Globalping triangulation and the egress-IP echo). Everything else still works, fully offline.",
+      "default": false
+    },
+    "enable_write": {
+      "type": "boolean",
+      "title": "Allow WireGuard writes",
+      "description": "Permit the mutating WireGuard tools (wg_peer_add / wg_peer_remove). They still dry-run unless the call passes confirm:true. Leave off for a strictly read-only server.",
+      "default": false
+    },
+    "allow": {
+      "type": "string",
+      "title": "Allowlist (optional)",
+      "description": "Comma/space-separated hosts or CIDRs. When set, only these targets are allowed (strict mode).",
+      "required": false,
+      "default": ""
+    },
+    "deny": {
+      "type": "string",
+      "title": "Denylist (optional)",
+      "description": "Comma/space-separated hosts or CIDRs to block.",
+      "required": false,
+      "default": ""
+    },
+    "max_ports": {
+      "type": "number",
+      "title": "Max ports per call",
+      "description": "Cap for tcp_port_check (anti-scan).",
+      "default": 20,
+      "min": 1,
+      "max": 100
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  }
+}

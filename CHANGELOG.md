@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Social preview image (`assets/og-image.png`, 1280×640) generated from `assets/og-image.svg`.
 - `CHANGELOG.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) and `.github/FUNDING.yml`.
 - `author` field in `package.json`.
-- Unit test suite (`node:test`, no new runtime deps): 36 cases covering the scope-guard
+- Unit test suite (`node:test`, no new runtime deps): 37 cases covering the scope-guard
   (allow/deny matching, CIDR, port caps, write/network gates, env/argv parsing) and the
   fragile parsers (`extractDomains`, the `wg set` argv builder, hosts-file reader).
   Run with `npm run test:unit`; the full `npm test` does build + unit + smoke.
@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   trust-comparison table (netops-mcp vs alpadalar/netops-mcp, globalping-mcp, ProbeOps)
   across read-only / no-shell / untrusted-input wrapper / zero-telemetry / local-first /
   WireGuard / transport, and a `shell-none` badge.
+- **`.mcpb` bundle for one-click install in Claude Desktop** — `manifest.json` (MCPB spec
+  0.3) plus `scripts/build-mcpb.mjs` and an `npm run build:mcpb` script that compiles,
+  bundles production deps into a self-contained `server/`, syncs the version from
+  `package.json`, and packs `netops-mcp.mcpb`. Flags are exposed as install-dialog toggles
+  (local-only, WireGuard writes, allow/deny, max-ports) via `user_config`. `npm run
+  validate:mcpb` checks the manifest. (Distributed as a GitHub release asset, not on npm.)
+- `server` `instructions` on the `McpServer` — tells the model to start with `net_diagnose`
+  for verdicts, use `net_triangulate` for "is it me or them?", prefer the orchestrators over
+  hand-chaining single probes, and always surface the raw data under a verdict.
+- README `Install` section reworked for first-run: one-click `.mcpb` path, a Windows
+  `cmd /c npx` config, why `-y` is required, and a "don't see the tools?" 3-step checklist.
 
 ### Fixed
 
@@ -42,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   adds the no-shell / untrusted-wrapper safety framing. No "AI-powered", no marketing buzzwords.
 - README restructured for the GitHub landing page: hero with logo, table of contents,
   and the tool reference folded into a collapsible `<details>` block.
+- `NETOPS_LOCAL_ONLY` / `NETOPS_ENABLE_WRITE` now accept any truthy string
+  (`1`/`true`/`yes`/`on`, case-insensitive) instead of only `"1"`, so the `.mcpb` boolean
+  toggles (which serialize to `"true"`/`"false"`) work. The old `"1"` form still works.
+- Version string de-duplicated within `src/index.ts` (single `VERSION` const) instead of
+  two hardcoded literals.
 
 ### Note
 
