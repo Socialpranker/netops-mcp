@@ -169,11 +169,13 @@ is down, or wrong port. ICMP also fails.
 
 ## Install
 
-```bash
-npx netops-mcp
-```
+### Claude Desktop — one click, no JSON
 
-### Claude Desktop / Claude Code / Cursor — `mcp.json`
+Download `netops-mcp.mcpb` from the [latest release](https://github.com/Socialpranker/netops-mcp/releases/latest) and **double-click it**. Claude Desktop opens an install dialog where you can toggle local-only mode, WireGuard writes, and the allow/deny lists — no config file to hand-edit. Done.
+
+> Building it yourself: `npm run build:mcpb` produces `netops-mcp.mcpb` from source.
+
+### Claude Code / Cursor / manual — `mcp.json`
 
 ```json
 {
@@ -186,7 +188,22 @@ npx netops-mcp
 }
 ```
 
-Privacy-strict (no third-party calls at all — disables Globalping and the egress-IP echo):
+The `-y` flag is required — without it, `npx` may stop to prompt on first run and the server never starts.
+
+**On Windows**, `npx` is a shell script, so the launcher needs `cmd /c` to find it:
+
+```json
+{
+  "mcpServers": {
+    "netops": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "netops-mcp"]
+    }
+  }
+}
+```
+
+Privacy-strict (no third-party calls at all — disables Globalping and the egress-IP echo) — add `--local-only` to `args`:
 
 ```json
 {
@@ -198,6 +215,12 @@ Privacy-strict (no third-party calls at all — disables Globalping and the egre
   }
 }
 ```
+
+### Don't see the tools? Three checks
+
+1. **Restart the client fully** after editing `mcp.json` — most clients read it only at startup, not on save.
+2. **Run it once by hand:** `npx -y netops-mcp`. A healthy server prints `[netops] netops-mcp vX.Y.Z ready on stdio` to **stderr** and then waits silently (it speaks MCP over stdin/stdout — no further output is normal). If `npx` errors here, fix that first.
+3. **Check Node ≥ 20:** `node --version`. Older Node is the most common silent failure.
 
 ## Reference &amp; advanced
 

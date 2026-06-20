@@ -148,9 +148,20 @@ export function guardFromEnv(argv: string[]): Guard {
     const n = Number(env.NETOPS_MAX_PORTS);
     if (Number.isFinite(n) && n > 0) cfg.maxPortsPerCall = Math.floor(n);
   }
-  if (env.NETOPS_LOCAL_ONLY === "1") cfg.localOnly = true;
-  if (env.NETOPS_ENABLE_WRITE === "1") cfg.allowWrite = true;
+  if (isTruthy(env.NETOPS_LOCAL_ONLY)) cfg.localOnly = true;
+  if (isTruthy(env.NETOPS_ENABLE_WRITE)) cfg.allowWrite = true;
   return new Guard(cfg);
+}
+
+/**
+ * Truthy test for env toggles. Accepts "1"/"true"/"yes"/"on" (case-insensitive);
+ * everything else (including "0"/"false"/"" and undefined) is false. The broader
+ * set is needed because the .mcpb bundle serializes boolean user_config to the
+ * string "true"/"false", not "1"/"0".
+ */
+function isTruthy(v: string | undefined): boolean {
+  if (!v) return false;
+  return ["1", "true", "yes", "on"].includes(v.trim().toLowerCase());
 }
 
 function splitList(s: string): string[] {
