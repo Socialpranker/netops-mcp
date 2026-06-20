@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   across read-only / no-shell / untrusted-input wrapper / zero-telemetry / local-first /
   WireGuard / transport, and a `shell-none` badge.
 
+### Fixed
+
+- `test:unit` failed on Node 20 in CI (`Could not find 'test/**/*.test.mjs'`): the quoted
+  `**` glob relied on `node --test`'s native glob support, which only exists on Node 21+.
+  Switched to `node --test test/*.test.mjs` — a POSIX glob the shell expands on any Node version.
+
 ### Changed
 
 - README repositioned around "diagnosis with a verdict, locally": new tagline
